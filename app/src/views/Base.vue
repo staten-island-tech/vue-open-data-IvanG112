@@ -1,13 +1,19 @@
 <template>
   <div class="container">
-    <h2>NYC State Test Grades by Grade Level</h2>
+    <h2>NYC State Test: Mean Scale Score Over Years</h2>
     <p>Data source: NYC Open Data (state test performance, Citywide, All Students)</p>
+    <div class="controls">
+      <label for="grade-select">Select Grade:</label>
+      <select id="grade-select" v-model="selectedGrade">
+        <option v-for="grade in availableGrades" :key="grade" :value="grade">{{ grade }}</option>
+      </select>
+    </div>
     <Bar v-if="loaded" id="grade-chart" :options="chartOptions" :data="chartData" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js';
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
@@ -20,13 +26,45 @@ const chartOptions = ref({
   responsive: true,
   plugins: {
     legend: { position: 'top' },
-    title: { display: true, text: 'NYC State Test: % Level 3+4 by Grade Level' },
+    title: { display: true, text: 'NYC State Test: Mean Scale Score Over Years' },
   },
   scales: {
-    x: { title: { display: true, text: 'Grade Level' } },
-    y: { beginAtZero: true, max: 100, title: { display: true, text: '% Level 3+4' } },
+    x: { title: { display: true, text: 'Year' } },
+    y: { beginAtZero: true, title: { display: true, text: 'Mean Scale Score' } },
   },
 });
+
+const selectedGrade = ref('3');
+const availableGrades = ref(['3', '4', '5', '6', '7', '8']);
+const allData = ref([]);
+
+function updateChart() {
+  if (!allData.value.length || !selectedGrade.value) return;
+
+  const filtered = allData.value.filter((item) => item.grade === selectedGrade.value);
+  const byYear = filtered.reduce((acc, item) => {
+    const year = item.year;
+    const score = parseFloat(item.mean_scale_score);
+    if (!Number.isNaN(score)) acc[year] = score;
+    return acc;
+  }, {});
+
+  const years = Object.keys(byYear).sort();
+  const values = years.map((y) => byYear[y]);
+
+  chartData.value = {
+    labels: years,
+    datasets: [
+      {
+        label: `Mean Scale Score (Grade ${selectedGrade.value})`,
+        backgroundColor: '#FA5B50',
+        borderColor: '#FA463A',
+        borderWidth: 1,
+        data: values,
+      },
+    ],
+  };
+}
 
 async function fetchGrades() {
   try {
@@ -37,42 +75,21 @@ async function fetchGrades() {
       (item) =>
         item.report_category === 'Citywide' &&
         item.student_category === 'All Students' &&
-        item.pct_level_3_and_4 != null
+        item.mean_scale_score != null &&
+        item.grade !== 'All Grades'
     );
 
-    const years = [...new Set(filtered.map((item) => item.year))].sort();
-    const latestYear = years[years.length - 1];
-    const byGrade = filtered
-      .filter((item) => item.year === latestYear)
-      .reduce((acc, item) => {
-        const grade = item.grade;
-        const pct = parseFloat(item.pct_level_3_and_4);
-        if (!Number.isNaN(pct)) acc[grade] = pct;
-        return acc;
-      }, {});
+    allData.value = filtered;
+    selectedGrade.value = '3'; // default to grade 3
 
-    const gradeOrder = ['3', '4', '5', '6', '7', '8'];
-    const labels = gradeOrder.filter((g) => byGrade[g] !== undefined);
-    const values = labels.map((g) => byGrade[g]);
-
-    chartData.value = {
-      labels,
-      datasets: [
-        {
-          label: `% Level 3 + 4 (${latestYear})`,
-          backgroundColor: 'rgba(54, 162, 235, 0.7)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1,
-          data: values,
-        },
-      ],
-    };
-
+    updateChart();
     loaded.value = true;
   } catch (error) {
     console.error('Error fetching grades:', error);
   }
 }
+
+watch(selectedGrade, updateChart);
 
 onMounted(fetchGrades);
 </script>
@@ -80,4 +97,7 @@ onMounted(fetchGrades);
 <style scoped>
 .container { padding: 1rem; max-width: 900px; margin: 0 auto; }
 h2 { margin-bottom: 0.5rem; }
+.controls { margin-bottom: 1rem; }
+.controls label { margin-right: 0.5rem; }
+.controls select { padding: 0.25rem; }
 </style>
