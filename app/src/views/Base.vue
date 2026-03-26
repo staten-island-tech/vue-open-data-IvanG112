@@ -1,9 +1,12 @@
 <template>
   <div class="container">
-    <h2>NYC State Test: Mean Scale Score Over Years</h2>
-    <p>Data source: NYC Open Data (state test performance, Citywide, All Students)</p>
+    <h2>NYC State Test Data</h2>
     <div class="controls">
       <label for="grade-select">Select Grade:</label>
+      <div>
+        <RouterLink to="/">Line Chart</RouterLink> |
+        <RouterLink to="/PieChart">Pie Chart</RouterLink>
+      </div>
       <select id="grade-select" v-model="selectedGrade">
         <option v-for="grade in availableGrades" :key="grade" :value="grade">{{ grade }}</option>
       </select>
@@ -16,7 +19,6 @@
 import { ref, onMounted, watch } from 'vue';
 import { Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js';
-import { PieChart} from '@/components/PieChart.vue';
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
 
 defineOptions({ name: 'BaseView' });
